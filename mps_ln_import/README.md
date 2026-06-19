@@ -50,6 +50,8 @@ uvicorn mps_ln_import.service.api:app --reload --host 0.0.0.0 --port 8000
 
 `/api/erp-test/*` 是 ERP 函数调用测试接口预留，默认 `config.yaml` 中 `erp_api.enabled=false`，调用会返回 501，不会访问真实 ERP。等 ERP 团队提供 API 地址、认证和测试环境后，再启用并做真实联调。
 
+如果客户现场目前只有 BW 客户端、没有 ERP HTTP/OData API，先按 [BW_CLIENT_BRIDGE.md](BW_CLIENT_BRIDGE.md) 部署一个 Windows BW Bridge Agent。Bridge 对外仍提供同一套 HTTP 接口，内部使用 `CreateObject("Baan.Application.hongji")` 调用原 BW 函数。
+
 ## 测试
 
 ```bash
