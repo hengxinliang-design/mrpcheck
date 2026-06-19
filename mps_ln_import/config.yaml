@@ -1,0 +1,71 @@
+# ============================================================================
+#  主计划导入 ERP-LN  —  Python 版配置 (第1期原型)
+# ============================================================================
+
+excel:
+  # 待导入的工作簿(录入界面)。原型默认指向桌面文件的一份副本。
+  path: "/Users/hengxinliang/Desktop/预测/8-20主计划导入ERP-LN.xlsm"
+  sheet: "主计划导入"        # 数据所在表(原 VBA 用 ActiveSheet)
+  method_cell: "B1"          # 方案
+  header_row: 4              # 表头行
+  first_data_row: 5          # 数据起始行
+  result_col: 39             # 结果回写列 (AM)
+
+# 列布局: 逻辑字段 -> 列号。改了 Excel 列顺序只改这里,业务逻辑不动。
+# header 用于读取时校验表头是否漂移(不一致只告警, 不阻断)。
+columns:
+  key:                       # 4 个业务主键
+    factory:        {col: 1,  header: "工厂"}
+    item:           {col: 2,  header: "物料编码"}
+    customer:       {col: 3,  header: "客户"}
+    customer_item:  {col: 4,  header: "客户料号"}
+  master:                    # 第5~17列, 13个主数据字段(4GL位置参数名: source=ln 由LN带出, manual 手工保留)
+    seak: {col: 5,  header: "图号",              source: ln}
+    dsca: {col: 6,  header: "名称规格（说明）",   source: ln}
+    cpcl: {col: 7,  header: "特征",              source: ln}
+    wght: {col: 8,  header: "单重g",             source: ln}
+    mode: {col: 9,  header: "车型",              source: manual}   # 原 get.data 跳过 j=9
+    cqty: {col: 10, header: "单车用量",          source: manual}   # 跳过 j=10
+    sfst: {col: 11, header: "安全库存",          source: ln}
+    mqty: {col: 12, header: "单箱数量（手工）",   source: manual}   # 跳过 j=12
+    bqty: {col: 13, header: "单箱数量",          source: ln}
+    mpud: {col: 14, header: "主计划更新日期",     source: ln}
+    qhnd: {col: 15, header: "成品实时库存\n（CA01、DA01、EA01、BA01）", source: ln}
+    dqan: {col: 16, header: "销售订单逾期量（系统当前日期的逾期量）",    source: ln}
+    oqan: {col: 17, header: "未来销售订单交货量", source: ln}
+  periods:                   # 21个周期计划量
+    first_col: 18            # R
+    count: 21                # R..AL
+
+# LN 适配器: mock(本地模拟, 原型默认) | odata(真实, 待填端点)
+ln:
+  adapter: mock
+
+  # ---- 真实 OData 对接参数(第2/3期填) ----
+  odata:
+    base_url: "https://<LN主机>:<端口>/<租户>/lnapi/odata"   # 占位, 未配置时报错提示
+    middle_table_entity: "tddev8xxx_mps_import"   # 自定义中间表的 OData 实体名
+    item_entity: "tcibd001"                       # 物料主数据(供 get.data 改 OData GET)
+    auth:
+      type: oauth2          # oauth2 | basic
+      token_url: ""
+      client_id: ""
+      client_secret: ""
+    poll:
+      interval_seconds: 5   # 轮询中间表处理结果的间隔
+      timeout_seconds: 300
+
+  # ---- mock 模拟参数(原型用) ----
+  mock:
+    fetch_master: true      # 模拟 get.data 回填 ln 来源字段
+    fail_rows: []           # 强制让某些 Excel 行号导入失败(演示红行/汇总), 如 [6, 9]
+
+output:
+  # 处理结果另存为新文件(不覆盖录入源)。留空则在原文件名后加 _result。
+  result_path: ""
+  log_path: "mps_ln_import/run.log"
+
+# Web 服务模式配置。第 1 版使用 SQLite/本地上传目录, 后续可替换为 PostgreSQL + 对象存储。
+service:
+  db_path: "mps_ln_import/data/mps_import.sqlite3"
+  upload_dir: "mps_ln_import/data/uploads"
