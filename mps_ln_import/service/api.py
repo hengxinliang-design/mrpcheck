@@ -16,6 +16,7 @@ except ImportError as exc:  # pragma: no cover - exercised only without API deps
     ) from exc
 
 from .service import MPSImportService
+from .erp_test import ERPTestClient, ERPTestClientNotConfigured
 from .storage import SQLiteStore
 
 
@@ -26,6 +27,8 @@ def load_config(config_path: str = "mps_ln_import/config.yaml") -> dict:
     cfg.setdefault("service", {})
     cfg["service"].setdefault("db_path", "mps_ln_import/data/mps_import.sqlite3")
     cfg["service"].setdefault("upload_dir", "mps_ln_import/data/uploads")
+    cfg.setdefault("erp_api", {})
+    cfg["erp_api"].setdefault("enabled", False)
     return cfg
 
 
@@ -33,6 +36,7 @@ def create_app(config_path: str = "mps_ln_import/config.yaml") -> FastAPI:
     cfg = load_config(config_path)
     store = SQLiteStore(cfg["service"]["db_path"])
     svc = MPSImportService(cfg, store, cfg["service"]["upload_dir"])
+    erp_test = ERPTestClient(cfg)
     app = FastAPI(title="MPS LN Import Service", version="0.1.0")
 
     @app.get("/health")
@@ -95,7 +99,40 @@ def create_app(config_path: str = "mps_ln_import/config.yaml") -> FastAPI:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
         return job.__dict__
 
+    @app.get("/api/erp-test/status")
+    def erp_test_status():
+        settings = cfg.get("erp_api", {})
+        return {
+            "enabled": bool(settings.get("enabled", False)),
+            "baseUrlConfigured": bool(settings.get("base_url")) and "<" not in settings.get("base_url", ""),
+            "endpoints": settings.get("endpoints", {}),
+            "message": "reserved" if not settings.get("enabled", False) else "enabled",
+        }
+
+    @app.post("/api/erp-test/datacheck")
+    def erp_test_datacheck(payload: dict):
+        return _reserved_call(lambda: erp_test.datacheck(payload))
+
+    @app.post("/api/erp-test/master-data")
+    def erp_test_master_data(payload: dict):
+        return _reserved_call(lambda: erp_test.master_data(payload))
+
+    @app.post("/api/erp-test/import-plan")
+    def erp_test_import_plan(payload: dict):
+        return _reserved_call(lambda: erp_test.import_plan(payload))
+
+    @app.post("/api/erp-test/run-plan")
+    def erp_test_run_plan(payload: dict):
+        return _reserved_call(lambda: erp_test.run_plan(payload))
+
     return app
+
+
+def _reserved_call(fn):
+    try:
+        return fn()
+    except ERPTestClientNotConfigured as exc:
+        raise HTTPException(status_code=501, detail=str(exc)) from exc
 
 
 app = create_app()

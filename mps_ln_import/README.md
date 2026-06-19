@@ -40,8 +40,15 @@ uvicorn mps_ln_import.service.api:app --reload --host 0.0.0.0 --port 8000
 - `POST /api/mps-batches/{batchId}/validate`
 - `POST /api/mps-batches/{batchId}/import`
 - `GET /api/jobs/{jobId}`
+- `GET /api/erp-test/status`
+- `POST /api/erp-test/datacheck`
+- `POST /api/erp-test/master-data`
+- `POST /api/erp-test/import-plan`
+- `POST /api/erp-test/run-plan`
 
 当前 `validate/import` 为同步执行的任务壳，已经写入 job 状态；后续接 Celery/RQ 时 API 形状可以保持不变。
+
+`/api/erp-test/*` 是 ERP 函数调用测试接口预留，默认 `config.yaml` 中 `erp_api.enabled=false`，调用会返回 501，不会访问真实 ERP。等 ERP 团队提供 API 地址、认证和测试环境后，再启用并做真实联调。
 
 ## 测试
 

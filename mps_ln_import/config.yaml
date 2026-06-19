@@ -69,3 +69,19 @@ output:
 service:
   db_path: "mps_ln_import/data/mps_import.sqlite3"
   upload_dir: "mps_ln_import/data/uploads"
+
+# ERP 函数调用测试接口预留。ERP 团队提供真实 API 后再启用。
+# 当前保持 enabled=false, 避免开发/测试阶段误调用真实 ERP。
+erp_api:
+  enabled: false
+  base_url: "https://<ERP_API_HOST>"
+  timeout_seconds: 30
+  auth:
+    type: none        # none | api_key | oauth2 | basic
+    header_name: ""
+    api_key: ""
+  endpoints:
+    datacheck: "/api/mps/datacheck"
+    master_data: "/api/mps/master-data"
+    import_plan: "/api/mps/import-plan"
+    run_plan: "/api/mps/run-plan"
