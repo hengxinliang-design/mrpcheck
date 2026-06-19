@@ -9,6 +9,7 @@ import yaml
 
 try:
     from fastapi import FastAPI, File, HTTPException, UploadFile
+    from fastapi.responses import HTMLResponse
 except ImportError as exc:  # pragma: no cover - exercised only without API deps
     raise RuntimeError(
         "FastAPI dependencies are not installed. Run: "
@@ -42,6 +43,11 @@ def create_app(config_path: str = "mps_ln_import/config.yaml") -> FastAPI:
     @app.get("/health")
     def health():
         return {"ok": True}
+
+    @app.get("/", response_class=HTMLResponse)
+    def web_console():
+        index = Path(__file__).parent / "web" / "index.html"
+        return index.read_text(encoding="utf-8")
 
     @app.get("/api/mps-batches")
     def list_batches():

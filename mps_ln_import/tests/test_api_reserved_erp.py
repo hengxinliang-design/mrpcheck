@@ -39,3 +39,18 @@ def test_reserved_erp_test_endpoints_are_disabled_by_default(base_cfg, tmp_path)
         assert res.status_code == 501
         assert "reserved but not enabled" in res.json()["detail"]
 
+
+def test_web_console_is_served(base_cfg, tmp_path):
+    base_cfg["service"] = {
+        "db_path": str(tmp_path / "svc.sqlite3"),
+        "upload_dir": str(tmp_path / "uploads"),
+    }
+    config_path = tmp_path / "config.yaml"
+    config_path.write_text(yaml.safe_dump(base_cfg, allow_unicode=True), encoding="utf-8")
+
+    client = TestClient(create_app(str(config_path)))
+    res = client.get("/")
+
+    assert res.status_code == 200
+    assert "MPS LN Import" in res.text
+    assert "/api/mps-batches/upload" in res.text

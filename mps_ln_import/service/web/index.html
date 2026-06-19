@@ -1,0 +1,407 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>MPS LN Import</title>
+  <style>
+    :root {
+      --bg: #f6f7f9;
+      --panel: #ffffff;
+      --text: #17202a;
+      --muted: #647080;
+      --line: #d9dee7;
+      --accent: #1f7a5c;
+      --accent-dark: #155d45;
+      --danger: #b42318;
+      --warn: #9a6700;
+      --ok: #157347;
+      --shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, "Microsoft YaHei", sans-serif;
+    }
+    header {
+      height: 56px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 20px;
+      border-bottom: 1px solid var(--line);
+      background: var(--panel);
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+    h1 {
+      margin: 0;
+      font-size: 18px;
+      font-weight: 650;
+      letter-spacing: 0;
+    }
+    main {
+      display: grid;
+      grid-template-columns: 320px 1fr;
+      min-height: calc(100vh - 56px);
+    }
+    aside {
+      border-right: 1px solid var(--line);
+      background: var(--panel);
+      padding: 16px;
+      overflow: auto;
+    }
+    section {
+      padding: 16px;
+      min-width: 0;
+    }
+    .toolbar, .upload, .detail-head {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .upload {
+      padding-bottom: 14px;
+      border-bottom: 1px solid var(--line);
+      margin-bottom: 14px;
+    }
+    input[type="file"] {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid var(--line);
+      background: #fff;
+      border-radius: 6px;
+    }
+    button {
+      min-height: 34px;
+      border: 1px solid var(--line);
+      background: #fff;
+      color: var(--text);
+      border-radius: 6px;
+      padding: 0 10px;
+      cursor: pointer;
+      font: inherit;
+    }
+    button.primary {
+      background: var(--accent);
+      color: #fff;
+      border-color: var(--accent);
+    }
+    button.primary:hover { background: var(--accent-dark); }
+    button:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+    }
+    .status {
+      display: inline-flex;
+      align-items: center;
+      min-height: 24px;
+      padding: 2px 8px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: #fff;
+      color: var(--muted);
+      font-size: 12px;
+      white-space: nowrap;
+    }
+    .status.completed, .status.imported, .status.validated { color: var(--ok); border-color: #a7d7bd; background: #eef8f2; }
+    .status.failed, .status.validation_failed, .status.completed_with_errors { color: var(--danger); border-color: #f1b8b5; background: #fff2f1; }
+    .status.importing, .status.validating { color: var(--warn); border-color: #e5c47c; background: #fff8e5; }
+    .batch-list {
+      display: grid;
+      gap: 8px;
+    }
+    .batch {
+      display: grid;
+      gap: 5px;
+      padding: 10px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      box-shadow: var(--shadow);
+      cursor: pointer;
+    }
+    .batch.active { border-color: var(--accent); }
+    .batch-title {
+      font-weight: 650;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .meta {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+      min-width: 0;
+    }
+    .detail-head {
+      padding: 12px;
+      border-bottom: 1px solid var(--line);
+      justify-content: space-between;
+    }
+    .detail-title {
+      display: grid;
+      gap: 2px;
+      min-width: 220px;
+    }
+    .detail-title strong { font-size: 16px; }
+    .detail-title span { color: var(--muted); font-size: 12px; }
+    .table-wrap {
+      overflow: auto;
+      max-height: calc(100vh - 158px);
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 1180px;
+    }
+    th, td {
+      border-bottom: 1px solid var(--line);
+      padding: 8px;
+      text-align: left;
+      vertical-align: top;
+      white-space: nowrap;
+    }
+    th {
+      position: sticky;
+      top: 0;
+      z-index: 1;
+      background: #f9fafb;
+      font-size: 12px;
+      color: var(--muted);
+      font-weight: 650;
+    }
+    td.message {
+      max-width: 280px;
+      white-space: normal;
+    }
+    .empty {
+      padding: 44px 16px;
+      text-align: center;
+      color: var(--muted);
+    }
+    .toast {
+      color: var(--muted);
+      font-size: 13px;
+      min-height: 20px;
+    }
+    @media (max-width: 860px) {
+      main { grid-template-columns: 1fr; }
+      aside { border-right: 0; border-bottom: 1px solid var(--line); }
+      .table-wrap { max-height: none; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>MPS LN Import</h1>
+    <span id="erpStatus" class="status">ERP test: checking</span>
+  </header>
+  <main>
+    <aside>
+      <div class="upload">
+        <input id="fileInput" type="file" accept=".xlsx,.xlsm" />
+        <button id="uploadBtn" class="primary">上传</button>
+      </div>
+      <div class="toolbar" style="justify-content: space-between; margin-bottom: 10px;">
+        <strong>批次</strong>
+        <button id="refreshBtn">刷新</button>
+      </div>
+      <div id="batchList" class="batch-list"></div>
+    </aside>
+    <section>
+      <div class="panel">
+        <div class="detail-head">
+          <div class="detail-title">
+            <strong id="detailName">未选择批次</strong>
+            <span id="detailMeta">上传文件后在左侧选择批次</span>
+          </div>
+          <div class="toolbar">
+            <button id="validateBtn">校验并回填</button>
+            <button id="importBtn" class="primary">导入</button>
+          </div>
+        </div>
+        <div id="toast" class="toast" style="padding: 10px 12px;"></div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>行</th>
+                <th>状态</th>
+                <th>工厂</th>
+                <th>物料</th>
+                <th>客户</th>
+                <th>客户料号</th>
+                <th>图号</th>
+                <th>名称规格</th>
+                <th>第1期</th>
+                <th>第9期</th>
+                <th>结果信息</th>
+              </tr>
+            </thead>
+            <tbody id="rowsBody">
+              <tr><td colspan="11" class="empty">暂无数据</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </main>
+  <script>
+    const state = { batches: [], selected: null };
+    const qs = (id) => document.getElementById(id);
+
+    async function api(path, options = {}) {
+      const res = await fetch(path, options);
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.detail || `${res.status} ${res.statusText}`);
+      }
+      return res.json();
+    }
+
+    function setToast(text) {
+      qs("toast").textContent = text || "";
+    }
+
+    function statusClass(status) {
+      return `status ${String(status || "").replaceAll("_", "_")}`;
+    }
+
+    async function loadErpStatus() {
+      try {
+        const status = await api("/api/erp-test/status");
+        qs("erpStatus").textContent = status.enabled ? "ERP test: enabled" : "ERP test: reserved";
+        qs("erpStatus").className = status.enabled ? "status validated" : "status";
+      } catch {
+        qs("erpStatus").textContent = "ERP test: unavailable";
+        qs("erpStatus").className = "status failed";
+      }
+    }
+
+    async function loadBatches() {
+      state.batches = await api("/api/mps-batches");
+      renderBatches();
+      if (state.selected) {
+        const current = state.batches.find((b) => b.id === state.selected.id);
+        if (current) state.selected = current;
+        await loadRows();
+      }
+    }
+
+    function renderBatches() {
+      const box = qs("batchList");
+      if (!state.batches.length) {
+        box.innerHTML = '<div class="empty">暂无批次</div>';
+        return;
+      }
+      box.innerHTML = state.batches.map((b) => `
+        <div class="batch ${state.selected && state.selected.id === b.id ? "active" : ""}" data-id="${b.id}">
+          <div class="batch-title">${escapeHtml(b.source_file_name)}</div>
+          <div class="meta"><span>${escapeHtml(b.method)}</span><span class="${statusClass(b.status)}">${escapeHtml(b.status)}</span></div>
+          <div class="meta"><span>共 ${b.total_rows}</span><span>失败 ${b.failed_rows}</span></div>
+        </div>
+      `).join("");
+      box.querySelectorAll(".batch").forEach((el) => {
+        el.addEventListener("click", async () => {
+          state.selected = state.batches.find((b) => b.id === el.dataset.id);
+          renderBatches();
+          await loadRows();
+        });
+      });
+    }
+
+    async function loadRows() {
+      if (!state.selected) return;
+      const rows = await api(`/api/mps-batches/${state.selected.id}/rows`);
+      qs("detailName").textContent = state.selected.source_file_name;
+      qs("detailMeta").textContent = `${state.selected.id} · ${state.selected.method} · ${state.selected.status}`;
+      const body = qs("rowsBody");
+      if (!rows.length) {
+        body.innerHTML = '<tr><td colspan="11" class="empty">暂无行数据</td></tr>';
+        return;
+      }
+      body.innerHTML = rows.map((r) => `
+        <tr>
+          <td>${r.excel_row_no}</td>
+          <td><span class="${statusClass(r.status)}">${escapeHtml(r.status)}</span></td>
+          <td>${escapeHtml(r.factory)}</td>
+          <td>${escapeHtml(r.item)}</td>
+          <td>${escapeHtml(r.customer)}</td>
+          <td>${escapeHtml(r.customer_item)}</td>
+          <td>${escapeHtml((r.master || {}).seak || "")}</td>
+          <td>${escapeHtml((r.master || {}).dsca || "")}</td>
+          <td>${escapeHtml((r.periods || [])[0] || "")}</td>
+          <td>${escapeHtml((r.periods || [])[8] || "")}</td>
+          <td class="message">${escapeHtml(r.message || "")}</td>
+        </tr>
+      `).join("");
+    }
+
+    async function uploadFile() {
+      const file = qs("fileInput").files[0];
+      if (!file) {
+        setToast("请选择 Excel 文件");
+        return;
+      }
+      const form = new FormData();
+      form.append("file", file);
+      setBusy(true);
+      setToast("正在上传并解析...");
+      try {
+        const batch = await api("/api/mps-batches/upload", { method: "POST", body: form });
+        state.selected = batch;
+        setToast("上传完成");
+        await loadBatches();
+      } finally {
+        setBusy(false);
+      }
+    }
+
+    async function runAction(action) {
+      if (!state.selected) {
+        setToast("请先选择批次");
+        return;
+      }
+      setBusy(true);
+      setToast(action === "validate" ? "正在校验..." : "正在导入...");
+      try {
+        const job = await api(`/api/mps-batches/${state.selected.id}/${action}`, { method: "POST" });
+        setToast(`${job.type} ${job.status}: ${job.message}`);
+        await loadBatches();
+      } finally {
+        setBusy(false);
+      }
+    }
+
+    function setBusy(busy) {
+      ["uploadBtn", "refreshBtn", "validateBtn", "importBtn"].forEach((id) => qs(id).disabled = busy);
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? "").replace(/[&<>"']/g, (ch) => ({
+        "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;"
+      }[ch]));
+    }
+
+    qs("uploadBtn").addEventListener("click", uploadFile);
+    qs("refreshBtn").addEventListener("click", loadBatches);
+    qs("validateBtn").addEventListener("click", () => runAction("validate"));
+    qs("importBtn").addEventListener("click", () => runAction("import"));
+    loadErpStatus();
+    loadBatches().catch((err) => setToast(err.message));
+  </script>
+</body>
+</html>
